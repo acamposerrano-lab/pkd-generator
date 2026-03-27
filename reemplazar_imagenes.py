@@ -77,7 +77,7 @@ MISSING_COLOR = "#FEF3C7"
 PLACEHOLDER_COLOR = "#EFF6FF"
 
 
-# ════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════���
 #  Detección y conversión a PDF
 # ════════════════════════════════════════════════════════════════════════════
 
@@ -196,7 +196,7 @@ def convert_to_pdf(docx_path: str, pdf_path: str) -> str:
     return 'libreoffice'
 
 
-# ════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════���══════════════════════════════════════════════════
 #  Lógica de reemplazo
 # ════════════════════════════════════════════════════════════════════════════
 
@@ -367,62 +367,48 @@ def replace_images(docx_path: str, mappings: dict, output_path: str) -> tuple[li
 
 
 # ════════════════════════════════════════════════════════════════════════════
-#  Interfaz gráfica — Widgets personalizados
+#  Interfaz gráfica — Widgets personalizados (CORREGIDO)
 # ════════════════════════════════════════════════════════════════════════════
 
-class RoundedButton(tk.Canvas):
-    """Botón con esquinas redondeadas sobre Canvas."""
+class SimpleButton(tk.Frame):
+    """Botón simple basado en Frame (sin el problema de Canvas/widget ID)."""
 
     def __init__(self, parent, text, command,
                  bg=CLR_ACCENT, fg=CLR_BTN_FG, hover_bg=CLR_ACCENT2,
                  font=("Segoe UI", 9, "bold"),
-                 width=130, height=34, radius=8, state='normal', **kwargs):
-        super().__init__(parent, width=width, height=height,
-                         bg=parent.cget('bg'), highlightthickness=0, **kwargs)
+                 width=130, height=34, **kwargs):
+        super().__init__(parent, bg=bg, relief='solid', bd=1, **kwargs)
         self._bg       = bg
         self._hover_bg = hover_bg
         self._fg       = fg
         self._text     = text
         self._font     = font
         self._command  = command
-        self._radius   = radius
-        self._w        = width
-        self._h        = height
-        self._state    = state
-        self._draw()
-        self.bind('<Enter>',          self._on_enter)
-        self.bind('<Leave>',          self._on_leave)
-        self.bind('<ButtonRelease-1>', self._on_click)
+        self._state    = 'normal'
 
-    def _rounded_rect(self, color):
-        self.delete('all')
-        r, w, h = self._radius, self._w, self._h
-        for x0, y0, x1, y1, start in [
-            (0, 0, 2*r, 2*r, 90),
-            (w-2*r, 0, w, 2*r, 0),
-            (0, h-2*r, 2*r, h, 180),
-            (w-2*r, h-2*r, w, h, 270),
-        ]:
-            self.create_arc(x0, y0, x1, y1,
-                            start=start, extent=90, fill=color, outline=color)
-        self.create_rectangle(r, 0,   w-r, h,   fill=color, outline=color)
-        self.create_rectangle(0, r,   w,   h-r, fill=color, outline=color)
+        self.config(width=width, height=height)
+        self.pack_propagate(False)
 
-    def _draw(self, color=None):
-        c  = color or (self._bg if self._state == 'normal' else CLR_BORDER)
-        fg = self._fg if self._state == 'normal' else CLR_SUBTEXT
-        self._rounded_rect(c)
-        self.create_text(self._w // 2, self._h // 2,
-                         text=self._text, fill=fg,
-                         font=self._font, anchor='center')
+        self.label = tk.Label(
+            self, text=text, bg=bg, fg=fg, font=font, cursor='hand2'
+        )
+        self.label.pack(fill='both', expand=True)
+
+        self.bind('<Enter>', self._on_enter)
+        self.bind('<Leave>', self._on_leave)
+        self.bind('<Button-1>', self._on_click)
+        self.label.bind('<Enter>', self._on_enter)
+        self.label.bind('<Leave>', self._on_leave)
+        self.label.bind('<Button-1>', self._on_click)
 
     def _on_enter(self, _):
         if self._state == 'normal':
-            self._draw(self._hover_bg)
-            self.config(cursor='hand2')
+            self.config(bg=self._hover_bg)
+            self.label.config(bg=self._hover_bg)
 
     def _on_leave(self, _):
-        self._draw()
+        self.config(bg=self._bg)
+        self.label.config(bg=self._bg)
 
     def _on_click(self, _):
         if self._state == 'normal' and self._command:
@@ -430,7 +416,12 @@ class RoundedButton(tk.Canvas):
 
     def config_state(self, state):
         self._state = state
-        self._draw()
+        if state == 'disabled':
+            self.config(bg=CLR_BORDER)
+            self.label.config(bg=CLR_BORDER, fg=CLR_SUBTEXT)
+        else:
+            self.config(bg=self._bg)
+            self.label.config(bg=self._bg, fg=self._fg)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -529,10 +520,10 @@ class App(tk.Tk):
                  fg=CLR_TEXT, relief='flat').pack(
             side='left', padx=(12, 6), pady=8, fill='x', expand=True)
 
-        RoundedButton(frm, text="Examinar…", command=cmd,
-                      width=110, height=30,
-                      font=("Segoe UI", 9, "bold")).pack(
-            side='right', padx=10, pady=8)
+        btn = SimpleButton(frm, text="Examinar…", command=cmd,
+                           width=110, height=30,
+                           font=("Segoe UI", 9, "bold"))
+        btn.pack(side='right', padx=10, pady=8)
 
     def _build_table(self, parent, row):
         frm = tk.LabelFrame(parent,
@@ -611,17 +602,17 @@ class App(tk.Tk):
                        font=("Segoe UI", 9),
                        cursor='hand2').pack(padx=10, pady=8)
 
-        # Botón Generar
-        self.btn_gen = RoundedButton(
+        # Botón Generar (AHORA SimpleButton, no Canvas)
+        self.btn_gen = SimpleButton(
             bar,
             text="⚙  Generar documento",
             command=self._generate,
             bg=CLR_SUCCESS, hover_bg=CLR_SUCCESS2,
             width=180, height=38,
             font=("Segoe UI", 10, "bold"),
-            state='disabled',
         )
         self.btn_gen.grid(row=0, column=1, sticky='e')
+        self.btn_gen.config_state('disabled')
 
     # ── Acciones ────────────────────────────────────────────────────────────
 
