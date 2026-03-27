@@ -1,0 +1,75 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:     [ 'v*' ]
+  workflow_dispatch:           # permite lanzarlo a mano desde GitHub
+
+permissions:
+  contents: write              # necesario para crear releases
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v5
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install python-docx lxml pillow pyinstaller comtypes
+
+      - name: Convertir PNG a ICO
+        shell: python
+        run: |
+          import sys, os
+          from PIL import Image
+
+          if not os.path.exists("icon.png"):
+              print("AVISO: no se encontró icon.png, se compilará sin icono")
+              sys.exit(0)
+
+          img = Image.open("icon.png").convert("RGBA")
+          sizes = [(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)]
+          img.save("icon.ico", format="ICO", sizes=sizes)
+          print("icon.ico generado correctamente")
+
+      - name: Compilar con PyInstaller
+        shell: pwsh
+        run: |
+          $icon = if (Test-Path "icon.ico") { "--icon=icon.ico" } else { "" }
+          pyinstaller `
+            --onefile `
+            --windowed `
+            --name "ReemplazadorImagenes" `
+            --hidden-import=comtypes `
+            --hidden-import=comtypes.client `
+            --hidden-import=comtypes.automation `
+            --hidden-import=comtypes.typeinfo `
+            --hidden-import=comtypes._comobject `
+            --hidden-import=comtypes.stream `
+            --hidden-import=winreg `
+            $icon `
+            reemplazar_imagenes.py
+
+      - name: Subir artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReemplazadorImagenes-windows
+          path: dist/ReemplazadorImagenes.exe
+          retention-days: 30
+
+      # ── Release automático al hacer push de un tag v* ──────────────────
+      - name: Crear Release en GitHub
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ReemplazadorImagenes.exe
