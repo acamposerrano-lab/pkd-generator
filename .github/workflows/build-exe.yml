@@ -42,29 +42,10 @@ jobs:
           img.save("icon.ico", format="ICO", sizes=sizes)
           print("icon.ico generado correctamente")
 
-      - name: Compilar con PyInstaller (con hook personalizado)
+      - name: Compilar con PyInstaller (usando .spec)
         shell: pwsh
         run: |
-          $icon = if (Test-Path "icon.ico") { "--icon=icon.ico" } else { "" }
-          pyinstaller `
-            --onefile `
-            --windowed `
-            --name "ReemplazadorImagenes" `
-            --collect-all=tkinter `
-            --collect-all=tcl `
-            --hidden-import=comtypes `
-            --hidden-import=comtypes.client `
-            --hidden-import=comtypes.automation `
-            --hidden-import=comtypes.typeinfo `
-            --hidden-import=comtypes._comobject `
-            --hidden-import=comtypes.stream `
-            --hidden-import=winreg `
-            --hidden-import=tkinter.ttk `
-            --hidden-import=tkinter.filedialog `
-            --hidden-import=tkinter.messagebox `
-            --additional-hooks-dir=. `
-            $icon `
-            reemplazar_imagenes.py
+          pyinstaller reemplazar_imagenes.spec
 
       - name: Subir artefacto
         uses: actions/upload-artifact@v4
